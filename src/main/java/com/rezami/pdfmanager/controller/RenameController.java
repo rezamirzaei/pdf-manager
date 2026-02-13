@@ -8,6 +8,7 @@ import com.rezami.pdfmanager.domain.RenamePlan;
 import com.rezami.pdfmanager.service.RenameService;
 import com.rezami.pdfmanager.ui.RenameView;
 import com.rezami.pdfmanager.ui.RenameViewListener;
+import com.rezami.pdfmanager.util.ProgressListener;
 import com.rezami.pdfmanager.util.TaskRunner;
 
 public final class RenameController implements RenameViewListener {
@@ -45,8 +46,13 @@ public final class RenameController implements RenameViewListener {
         view.setBusy(true);
         view.appendLog("Scanning…");
 
+        // Create progress listener that updates the UI
+        ProgressListener progressListener = (current, total, message) -> {
+            view.setProgress(current, total, message);
+        };
+
         taskRunner.runAsync(
-                () -> renameService.plan(directory, recursive),
+                () -> renameService.plan(directory, recursive, progressListener),
                 plan -> {
                     latestPlan = plan;
                     view.setPlan(plan);

@@ -2,7 +2,9 @@ package com.rezami.pdfmanager.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.clearInvocations;
@@ -22,6 +24,7 @@ import com.rezami.pdfmanager.domain.RenamePlanEntry;
 import com.rezami.pdfmanager.domain.RenameStatus;
 import com.rezami.pdfmanager.service.RenameService;
 import com.rezami.pdfmanager.ui.RenameView;
+import com.rezami.pdfmanager.util.ProgressListener;
 import com.rezami.pdfmanager.util.TaskRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -75,7 +78,7 @@ class RenameControllerTest {
         controller.onDirectoryChosen(dir);
 
         RenamePlan planned = planWithReadyCount(dir, 1);
-        when(renameService.plan(dir, false)).thenReturn(planned);
+        when(renameService.plan(eq(dir), eq(false), any(ProgressListener.class))).thenReturn(planned);
 
         controller.onScanRequested();
 
@@ -112,7 +115,7 @@ class RenameControllerTest {
         controller.onDirectoryChosen(dir);
 
         RenamePlan planned = planWithReadyCount(dir, 0);
-        when(renameService.plan(dir, false)).thenReturn(planned);
+        when(renameService.plan(eq(dir), eq(false), any(ProgressListener.class))).thenReturn(planned);
 
         controller.onScanRequested();
         controller.onRenameRequested();
@@ -134,7 +137,8 @@ class RenameControllerTest {
         RenamePlan initial = planWithReadyCount(dir, 1);
         RenamePlan refreshed = planWithReadyCount(dir, 0);
 
-        when(renameService.plan(dir, false)).thenReturn(initial, refreshed);
+        when(renameService.plan(eq(dir), eq(false), any(ProgressListener.class))).thenReturn(initial);
+        when(renameService.plan(dir, false)).thenReturn(refreshed);
 
         controller.onScanRequested();
         clearInvocations(view);

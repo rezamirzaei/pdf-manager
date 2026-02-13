@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 import com.rezami.pdfmanager.domain.RenamePlan;
+import com.rezami.pdfmanager.util.ProgressListener;
 
 public final class PdfRenameService implements RenameService {
     private final RenamePlanner planner;
@@ -18,6 +19,11 @@ public final class PdfRenameService implements RenameService {
     @Override
     public RenamePlan plan(Path directory, boolean recursive) throws IOException {
         return planner.plan(directory, recursive);
+    }
+
+    @Override
+    public RenamePlan plan(Path directory, boolean recursive, ProgressListener progressListener) throws IOException {
+        return planner.plan(directory, recursive, progressListener);
     }
 
     @Override

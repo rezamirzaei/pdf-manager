@@ -11,6 +11,8 @@ public interface RenameView {
 
     void setBusy(boolean busy);
 
+    void setProgress(int current, int total, String message);
+
     void setDirectory(Path directory);
 
     boolean isRecursiveSelected();

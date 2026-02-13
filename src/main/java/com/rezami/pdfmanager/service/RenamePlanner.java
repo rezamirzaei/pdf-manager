@@ -16,6 +16,7 @@ import com.rezami.pdfmanager.domain.RenamePlan;
 import com.rezami.pdfmanager.domain.RenamePlanEntry;
 import com.rezami.pdfmanager.domain.RenameStatus;
 import com.rezami.pdfmanager.util.FileNameSanitizer;
+import com.rezami.pdfmanager.util.ProgressListener;
 
 public final class RenamePlanner {
     private final PdfFileScanner scanner;
@@ -29,12 +30,21 @@ public final class RenamePlanner {
     }
 
     public RenamePlan plan(Path directory, boolean recursive) throws IOException {
+        return plan(directory, recursive, ProgressListener.none());
+    }
+
+    public RenamePlan plan(Path directory, boolean recursive, ProgressListener progressListener) throws IOException {
         Objects.requireNonNull(directory, "directory");
+        Objects.requireNonNull(progressListener, "progressListener");
 
         List<Path> pdfs = scanner.scan(directory, recursive);
+        int total = pdfs.size();
 
-        List<EntryDraft> drafts = new ArrayList<>(pdfs.size());
-        for (Path pdf : pdfs) {
+        List<EntryDraft> drafts = new ArrayList<>(total);
+        for (int i = 0; i < total; i++) {
+            Path pdf = pdfs.get(i);
+            String fileName = pdf.getFileName().toString();
+            progressListener.onProgress(i + 1, total, "Processing: " + fileName);
             drafts.add(draftFor(pdf));
         }
 

@@ -36,7 +36,8 @@ public final class SwingRenameView extends JFrame implements RenameView {
     private final JButton browseButton = new JButton("Browse…");
     private final JButton scanButton = new JButton("Scan");
     private final JButton renameButton = new JButton("Rename");
-    private final JProgressBar progress = new JProgressBar();
+    private final JProgressBar progress = new JProgressBar(0, 100);
+    private final JLabel progressLabel = new JLabel("");
 
     private final RenameTableModel tableModel = new RenameTableModel();
     private final JTable table = new JTable(tableModel);
@@ -72,8 +73,27 @@ public final class SwingRenameView extends JFrame implements RenameView {
                     scanButton.setEnabled(!busy);
                     renameButton.setEnabled(!busy);
                     recursiveCheckBox.setEnabled(!busy);
-                    progress.setIndeterminate(busy);
+                    if (!busy) {
+                        progress.setValue(0);
+                        progress.setIndeterminate(false);
+                        progressLabel.setText("");
+                    }
                 });
+    }
+
+    @Override
+    public void setProgress(int current, int total, String message) {
+        SwingUtilities.invokeLater(() -> {
+            if (total > 0) {
+                int percent = (int) ((current * 100.0) / total);
+                progress.setIndeterminate(false);
+                progress.setValue(percent);
+                progressLabel.setText(current + "/" + total);
+            } else {
+                progress.setIndeterminate(true);
+                progressLabel.setText(message);
+            }
+        });
     }
 
     @Override
@@ -154,9 +174,11 @@ public final class SwingRenameView extends JFrame implements RenameView {
         actions.add(scanButton);
         actions.add(renameButton);
         actions.add(progress);
+        actions.add(progressLabel);
 
-        progress.setPreferredSize(new Dimension(160, 18));
-        progress.setIndeterminate(false);
+        progress.setPreferredSize(new Dimension(200, 20));
+        progress.setStringPainted(true);
+        progressLabel.setPreferredSize(new Dimension(80, 20));
 
         scanButton.addActionListener(
                 e -> {
