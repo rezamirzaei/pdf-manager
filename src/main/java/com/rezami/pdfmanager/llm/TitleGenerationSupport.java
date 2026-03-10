@@ -1,7 +1,9 @@
 package com.rezami.pdfmanager.llm;
 
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 final class TitleGenerationSupport {
@@ -74,15 +76,81 @@ final class TitleGenerationSupport {
             return Optional.empty();
         }
 
-        if (cleaned.length() <= maxLength) {
-            return Optional.of(cleaned);
+        String bounded = cleaned;
+        if (bounded.length() > maxLength) {
+            int lastSpace = bounded.lastIndexOf(' ', maxLength - 3);
+            if (lastSpace > maxLength / 2) {
+                bounded = bounded.substring(0, lastSpace).trim();
+            } else {
+                bounded = bounded.substring(0, maxLength - 3).trim();
+            }
         }
 
-        int lastSpace = cleaned.lastIndexOf(' ', maxLength - 3);
-        if (lastSpace > maxLength / 2) {
-            return Optional.of(cleaned.substring(0, lastSpace).trim());
+        return looksPlausibleTitle(bounded) ? Optional.of(bounded) : Optional.empty();
+    }
+
+    private static boolean looksPlausibleTitle(String candidate) {
+        if (candidate.isBlank()) {
+            return false;
+        }
+        if (candidate.chars().allMatch(ch -> Character.isDigit(ch) || Character.isWhitespace(ch))) {
+            return false;
+        }
+        if (longestRepeatedRun(candidate) >= 5) {
+            return false;
         }
 
-        return Optional.of(cleaned.substring(0, maxLength - 3).trim());
+        long letters = candidate.chars().filter(Character::isLetter).count();
+        long digits = candidate.chars().filter(Character::isDigit).count();
+        if (letters < 3) {
+            return false;
+        }
+
+        double letterRatio = (double) letters / candidate.length();
+        double digitRatio = (double) digits / candidate.length();
+        if (letterRatio < 0.35 || digitRatio > 0.35) {
+            return false;
+        }
+
+        String[] words = candidate.trim().split("\\s+");
+        if (words.length >= 5) {
+            Set<String> uniqueWords = new HashSet<>();
+            for (String word : words) {
+                uniqueWords.add(word.toLowerCase());
+            }
+            double uniqueWordRatio = (double) uniqueWords.size() / words.length;
+            if (uniqueWordRatio < 0.55) {
+                return false;
+            }
+        }
+
+        return distinctLetterScripts(candidate) <= 2;
+    }
+
+    private static int longestRepeatedRun(String value) {
+        int longest = 1;
+        int current = 1;
+        for (int i = 1; i < value.length(); i++) {
+            if (value.charAt(i) == value.charAt(i - 1)) {
+                current++;
+                longest = Math.max(longest, current);
+            } else {
+                current = 1;
+            }
+        }
+        return longest;
+    }
+
+    private static int distinctLetterScripts(String value) {
+        Set<Character.UnicodeScript> scripts = new HashSet<>();
+        value.codePoints()
+                .filter(Character::isLetter)
+                .forEach(codePoint -> {
+                    Character.UnicodeScript script = Character.UnicodeScript.of(codePoint);
+                    if (script != Character.UnicodeScript.COMMON && script != Character.UnicodeScript.INHERITED) {
+                        scripts.add(script);
+                    }
+                });
+        return scripts.size();
     }
 }
