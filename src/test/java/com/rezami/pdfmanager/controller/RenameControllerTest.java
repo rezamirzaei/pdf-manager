@@ -2,12 +2,11 @@ package com.rezami.pdfmanager.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -16,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
@@ -125,8 +125,9 @@ class RenameControllerTest {
     }
 
     @Test
-    void onRenameRequested_executesAndRefreshesPlan() throws IOException {
+    void onRenameRequested_whenNothingSelected_logsAndDoesNotExecute() throws IOException {
         when(view.isRecursiveSelected()).thenReturn(false);
+        when(view.selectedReadySources()).thenReturn(Set.of());
 
         TaskRunner taskRunner = new DirectTaskRunner();
         RenameController controller = new RenameController(renameService, taskRunner, view);
@@ -134,7 +135,36 @@ class RenameControllerTest {
         Path dir = Path.of("dir");
         controller.onDirectoryChosen(dir);
 
-        RenamePlan initial = planWithReadyCount(dir, 1);
+        RenamePlan planned = planWithReadyCount(dir, 1);
+        when(renameService.plan(eq(dir), eq(false), any(ProgressListener.class))).thenReturn(planned);
+
+        controller.onScanRequested();
+        controller.onRenameRequested();
+
+        verify(view).appendLog("No PDFs selected for rename.");
+        verify(renameService, never()).execute(any());
+    }
+
+    @Test
+    void onRenameRequested_executesOnlySelectedEntriesAndRefreshesPlan() throws IOException {
+        when(view.isRecursiveSelected()).thenReturn(false);
+
+        TaskRunner taskRunner = new DirectTaskRunner();
+        RenameController controller = new RenameController(renameService, taskRunner, view);
+
+        Path dir = Path.of("dir");
+        Path selectedSource = dir.resolve("a.pdf");
+        when(view.selectedReadySources()).thenReturn(Set.of(selectedSource));
+
+        controller.onDirectoryChosen(dir);
+
+        RenamePlan initial =
+                new RenamePlan(
+                        dir,
+                        false,
+                        List.of(
+                                readyEntry(dir.resolve("a.pdf"), dir.resolve("A.pdf")),
+                                readyEntry(dir.resolve("b.pdf"), dir.resolve("B.pdf"))));
         RenamePlan refreshed = planWithReadyCount(dir, 0);
 
         when(renameService.plan(eq(dir), eq(false), any(ProgressListener.class))).thenReturn(initial);
@@ -144,11 +174,11 @@ class RenameControllerTest {
         clearInvocations(view);
         controller.onRenameRequested();
 
-        verify(renameService).execute(initial);
+        verify(renameService).execute(initial.filterReadySources(Set.of(selectedSource)));
 
         InOrder inOrder = inOrder(view);
         inOrder.verify(view).setBusy(true);
-        inOrder.verify(view).appendLog(contains("Renaming"));
+        inOrder.verify(view).appendLog("Renaming 1 selected PDF(s)…");
         inOrder.verify(view).setPlan(refreshed);
         inOrder.verify(view).appendLog("Rename complete.");
         inOrder.verify(view).setBusy(false);
@@ -165,15 +195,18 @@ class RenameControllerTest {
                                         Optional.empty(),
                                         RenameStatus.SKIPPED_NO_TITLE,
                                         "No title"))
-                        : List.of(
-                                new RenamePlanEntry(
-                                        dir.resolve("a.pdf"),
-                                        "a.pdf",
-                                        Optional.of("A"),
-                                        Optional.of(dir.resolve("A.pdf")),
-                                        RenameStatus.READY,
-                                        "Ready"));
+                        : List.of(readyEntry(dir.resolve("a.pdf"), dir.resolve("A.pdf")));
         return new RenamePlan(dir, false, entries);
+    }
+
+    private static RenamePlanEntry readyEntry(Path source, Path target) {
+        return new RenamePlanEntry(
+                source,
+                source.getFileName().toString(),
+                Optional.of(source.getFileName().toString()),
+                Optional.of(target),
+                RenameStatus.READY,
+                "Ready");
     }
 
     private static final class DirectTaskRunner implements TaskRunner {

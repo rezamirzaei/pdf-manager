@@ -1,6 +1,7 @@
 package com.rezami.pdfmanager.ui;
 
 import java.nio.file.Path;
+import java.util.Set;
 
 import com.rezami.pdfmanager.domain.RenamePlan;
 
@@ -20,6 +21,8 @@ public interface RenameView {
     boolean isRecursiveSelected();
 
     void setPlan(RenamePlan plan);
+
+    Set<Path> selectedReadySources();
 
     void appendLog(String message);
 

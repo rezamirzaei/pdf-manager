@@ -6,7 +6,8 @@ Desktop app that renames PDF files to match their embedded document titles or AI
 
 - You choose a folder.
 - Click **Scan** to preview file name changes.
-- Click **Rename** to rename all PDFs in that folder to their titles.
+- Review the preview checkboxes to opt out any files you want to keep unchanged.
+- Click **Rename** to rename the selected PDFs to their titles.
 - The app remembers your last folder and subfolder setting between launches.
 
 ## Title source

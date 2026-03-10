@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
+import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -37,7 +38,7 @@ public final class SwingRenameView extends JFrame implements RenameView {
     private final JCheckBox recursiveCheckBox = new JCheckBox("Include subfolders");
     private final JButton browseButton = new JButton("Browse…");
     private final JButton scanButton = new JButton("Scan");
-    private final JButton renameButton = new JButton("Rename");
+    private final JButton renameButton = new JButton("Rename Selected");
     private final JProgressBar progress = new JProgressBar(0, 100);
     private final JLabel progressLabel = new JLabel("");
 
@@ -48,7 +49,6 @@ public final class SwingRenameView extends JFrame implements RenameView {
 
     private RenameViewListener listener;
     private boolean busy;
-    private boolean hasReadyEntries;
 
     public SwingRenameView() {
         this(new UserPreferences());
@@ -59,6 +59,7 @@ public final class SwingRenameView extends JFrame implements RenameView {
         this.preferences = Objects.requireNonNull(preferences, "preferences");
         buildUi();
         restorePreferences();
+        tableModel.addTableModelListener(event -> updateActionState());
         updateActionState();
     }
 
@@ -137,11 +138,15 @@ public final class SwingRenameView extends JFrame implements RenameView {
 
     @Override
     public void setPlan(RenamePlan plan) {
-        this.hasReadyEntries = plan.readyCount() > 0;
         SwingUtilities.invokeLater(() -> {
             tableModel.setPlan(plan);
             updateActionState();
         });
+    }
+
+    @Override
+    public Set<Path> selectedReadySources() {
+        return tableModel.selectedReadySources();
     }
 
     @Override
@@ -232,10 +237,14 @@ public final class SwingRenameView extends JFrame implements RenameView {
                     if (listener == null) {
                         return;
                     }
+                    int selectedReadyCount = tableModel.selectedReadyCount();
+                    if (selectedReadyCount == 0) {
+                        return;
+                    }
                     int answer =
                             JOptionPane.showConfirmDialog(
                                     this,
-                                    "This will rename PDF files on disk.\n\nProceed?",
+                                    "This will rename " + selectedReadyCount + " selected PDF file(s) on disk.\n\nProceed?",
                                     "Confirm rename",
                                     JOptionPane.OK_CANCEL_OPTION,
                                     JOptionPane.WARNING_MESSAGE);
@@ -268,10 +277,11 @@ public final class SwingRenameView extends JFrame implements RenameView {
     private void updateActionState() {
         boolean hasListener = listener != null;
         boolean hasDirectory = !directoryField.getText().isBlank();
+        boolean hasSelectedReadyEntries = tableModel.selectedReadyCount() > 0;
 
         browseButton.setEnabled(!busy);
         recursiveCheckBox.setEnabled(!busy);
         scanButton.setEnabled(!busy && hasListener && hasDirectory);
-        renameButton.setEnabled(!busy && hasListener && hasReadyEntries);
+        renameButton.setEnabled(!busy && hasListener && hasSelectedReadyEntries);
     }
 }

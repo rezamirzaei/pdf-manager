@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 public record RenamePlan(Path rootDirectory, boolean recursive, List<RenamePlanEntry> entries) {
     public RenamePlan {
@@ -26,6 +27,17 @@ public record RenamePlan(Path rootDirectory, boolean recursive, List<RenamePlanE
                 .toList();
     }
 
+    public RenamePlan filterReadySources(Set<Path> selectedSources) {
+        Objects.requireNonNull(selectedSources, "selectedSources");
+
+        return new RenamePlan(
+                rootDirectory,
+                recursive,
+                entries.stream()
+                        .filter(entry -> !entry.isReady() || selectedSources.contains(entry.source()))
+                        .toList());
+    }
+
     public int readyCount() {
         return readyEntries().size();
     }
@@ -38,4 +50,3 @@ public record RenamePlan(Path rootDirectory, boolean recursive, List<RenamePlanE
         return (int) entries.stream().filter(e -> e.status() == RenameStatus.ERROR).count();
     }
 }
-

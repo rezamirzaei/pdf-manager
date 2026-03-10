@@ -3,6 +3,7 @@ package com.rezami.pdfmanager.controller;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.Set;
 
 import com.rezami.pdfmanager.domain.RenamePlan;
 import com.rezami.pdfmanager.service.RenameService;
@@ -87,15 +88,21 @@ public final class RenameController implements RenameViewListener {
             view.appendLog("Nothing to rename.");
             return;
         }
+        Set<Path> selectedSources = view.selectedReadySources();
+        if (selectedSources.isEmpty()) {
+            view.appendLog("No PDFs selected for rename.");
+            return;
+        }
 
-        RenamePlan planToExecute = latestPlan;
+        RenamePlan planToExecute = latestPlan.filterReadySources(selectedSources);
+        boolean recursive = view.isRecursiveSelected();
         view.setBusy(true);
-        view.appendLog("Renaming " + planToExecute.readyCount() + " PDF(s)…");
+        view.appendLog("Renaming " + planToExecute.readyCount() + " selected PDF(s)…");
 
         taskRunner.runAsync(
                 () -> {
                     renameService.execute(planToExecute);
-                    return renameService.plan(directory, view.isRecursiveSelected());
+                    return renameService.plan(directory, recursive);
                 },
                 refreshedPlan -> {
                     latestPlan = refreshedPlan;
