@@ -3,6 +3,7 @@ package com.rezami.pdfmanager.llm;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -45,13 +46,13 @@ class OllamaClientTest {
 
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn(responseBody);
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), anyBodyHandler()))
                 .thenReturn(httpResponse);
 
         Optional<String> title = client.generateTitle("This paper discusses machine learning algorithms...", 100);
 
         assertThat(title).contains("Introduction to Machine Learning");
-        verify(httpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        verify(httpClient).send(any(HttpRequest.class), anyBodyHandler());
     }
 
     @Test
@@ -84,7 +85,7 @@ class OllamaClientTest {
     void generateTitle_whenApiReturnsError_throwsIOException() throws Exception {
         when(httpResponse.statusCode()).thenReturn(500);
         when(httpResponse.body()).thenReturn("Internal Server Error");
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), anyBodyHandler()))
                 .thenReturn(httpResponse);
 
         assertThatThrownBy(() -> client.generateTitle("some text", 100))
@@ -96,7 +97,7 @@ class OllamaClientTest {
     void generateTitle_whenResponseMissingField_throwsIOException() throws Exception {
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn("{}");
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), anyBodyHandler()))
                 .thenReturn(httpResponse);
 
         assertThatThrownBy(() -> client.generateTitle("some text", 100))
@@ -112,15 +113,14 @@ class OllamaClientTest {
 
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn(responseBody);
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), anyBodyHandler()))
                 .thenReturn(httpResponse);
 
         String longText = "A".repeat(5000);
         Optional<String> title = client.generateTitle(longText, 100);
 
         assertThat(title).isPresent();
-        // Verify the request was made (text should have been truncated internally)
-        verify(httpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        verify(httpClient).send(any(HttpRequest.class), anyBodyHandler());
     }
 
     @Test
@@ -131,7 +131,7 @@ class OllamaClientTest {
 
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn(responseBody);
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), anyBodyHandler()))
                 .thenReturn(httpResponse);
 
         Optional<String> title = client.generateTitle("some text", 30);
@@ -148,7 +148,7 @@ class OllamaClientTest {
 
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn(responseBody);
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), anyBodyHandler()))
                 .thenReturn(httpResponse);
 
         Optional<String> title = client.generateTitle("some text", 100);
@@ -164,7 +164,7 @@ class OllamaClientTest {
                 """;
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn(responseBody);
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), anyBodyHandler()))
                 .thenReturn(httpResponse);
 
         List<String> models = client.listModels();
@@ -189,7 +189,7 @@ class OllamaClientTest {
     @Test
     void isAvailable_whenServerResponds_returnsTrue() throws Exception {
         when(httpResponse.statusCode()).thenReturn(200);
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), anyBodyHandler()))
                 .thenReturn(httpResponse);
 
         assertThat(client.isAvailable()).isTrue();
@@ -198,7 +198,7 @@ class OllamaClientTest {
     @Test
     void isAvailable_whenServerError_returnsFalse() throws Exception {
         when(httpResponse.statusCode()).thenReturn(500);
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), anyBodyHandler()))
                 .thenReturn(httpResponse);
 
         assertThat(client.isAvailable()).isFalse();
@@ -206,7 +206,7 @@ class OllamaClientTest {
 
     @Test
     void isAvailable_whenConnectionFails_returnsFalse() throws Exception {
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), anyBodyHandler()))
                 .thenThrow(new IOException("Connection refused"));
 
         assertThat(client.isAvailable()).isFalse();
@@ -235,5 +235,9 @@ class OllamaClientTest {
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("model");
     }
-}
 
+    @SuppressWarnings("unchecked")
+    private static HttpResponse.BodyHandler<String> anyBodyHandler() {
+        return ArgumentMatchers.any();
+    }
+}

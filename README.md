@@ -55,7 +55,7 @@ Requires **Java 21+**.
 ### Running modes:
 
 ```bash
-# Default: auto mode (LLM if Ollama is available, otherwise metadata)
+# Default: auto mode (configured Ollama endpoint/model if available, otherwise metadata)
 java -jar target/pdf-manager-0.1.0-SNAPSHOT-all.jar
 
 # Force metadata mode

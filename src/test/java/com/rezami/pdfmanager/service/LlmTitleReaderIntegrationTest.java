@@ -7,7 +7,6 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.io.TempDir;
@@ -27,18 +26,8 @@ class LlmTitleReaderIntegrationTest {
     @TempDir
     Path tempDir;
 
-    private static boolean ollamaAvailable;
-
-    @BeforeAll
-    static void checkOllamaAvailability() {
-        ollamaAvailable = TitleReaderFactory.isOllamaAvailable();
-        if (!ollamaAvailable) {
-            System.out.println("Skipping LLM integration tests: Ollama is not available");
-        }
-    }
-
     static boolean isOllamaAvailable() {
-        return ollamaAvailable;
+        return TitleReaderFactory.isOllamaAvailable();
     }
 
     @Test
@@ -67,7 +56,6 @@ class LlmTitleReaderIntegrationTest {
         assertThat(title).isPresent();
         assertThat(title.get()).isNotBlank();
         assertThat(title.get().length()).isLessThanOrEqualTo(100);
-        System.out.println("Generated title: " + title.get());
     }
 
     @Test
@@ -93,7 +81,6 @@ class LlmTitleReaderIntegrationTest {
 
         assertThat(title).isPresent();
         assertThat(title.get()).isNotBlank();
-        System.out.println("Generated title (composite): " + title.get());
     }
 
     @Test

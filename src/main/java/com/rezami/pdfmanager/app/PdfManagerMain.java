@@ -49,10 +49,7 @@ public final class PdfManagerMain {
                 return TitleReaderMode.COMPOSITE;
             }
         }
-        if (TitleReaderFactory.isOllamaAvailable()) {
-            return TitleReaderMode.LLM;
-        }
-        return TitleReaderMode.METADATA;
+        return TitleReaderMode.AUTO;
     }
 
     private static void startSwingApp(TitleReaderMode mode) {
@@ -76,6 +73,18 @@ public final class PdfManagerMain {
 
     private static PdfTitleReader createTitleReader(TitleReaderMode mode) {
         return switch (mode) {
+            case AUTO -> {
+                PdfTitleReader reader = TitleReaderFactory.createLlmReader();
+                if (reader instanceof LlmTitleReader llmReader) {
+                    LOGGER.info(
+                            "Auto mode selected LLM-based title generation with model "
+                                    + llmReader.getModelName()
+                                    + ".");
+                } else {
+                    LOGGER.info("Auto mode selected metadata reader because Ollama is unavailable.");
+                }
+                yield reader;
+            }
             case METADATA -> TitleReaderFactory.createMetadataReader();
             case LLM -> {
                 PdfTitleReader reader = TitleReaderFactory.createLlmReader();
@@ -112,6 +121,7 @@ public final class PdfManagerMain {
     }
 
     private enum TitleReaderMode {
+        AUTO,
         METADATA,
         LLM,
         COMPOSITE

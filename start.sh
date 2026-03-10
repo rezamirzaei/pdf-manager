@@ -1,5 +1,8 @@
-#!/bin/bash
-# Simple run script - just runs the app in default (fast) mode
-cd "$(dirname "$0")"
-echo "Starting PDF Manager..."
-java -jar target/pdf-manager-0.1.0-SNAPSHOT-all.jar
+#!/usr/bin/env bash
+# Convenience wrapper: rebuild quickly and run the app.
+set -eo pipefail
+
+ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
+
+exec bash "$ROOT_DIR/run.sh" --fast "$@"
