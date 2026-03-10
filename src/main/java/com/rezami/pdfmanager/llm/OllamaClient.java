@@ -27,7 +27,15 @@ public final class OllamaClient implements LlmClient {
     private static final String DEFAULT_BASE_URL = "http://localhost:11434";
     private static final String DEFAULT_MODEL = "llama3.2:1b";
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(45);
+    private static final int MAX_PROMPT_CHARS = 180;
+    private static final int MIN_OUTPUT_TOKENS = 8;
+    private static final int MAX_OUTPUT_TOKENS = 24;
     private static final Duration TAGS_TIMEOUT = Duration.ofSeconds(6);
+
+    private static final String TITLE_PROMPT_TEMPLATE = """
+        Title only, max %d chars, plain words:
+        %s
+        """;
 
     private final String baseUrl;
     private final String model;
@@ -72,7 +80,11 @@ public final class OllamaClient implements LlmClient {
             throw new IllegalArgumentException("maxTitleLength must be positive");
         }
 
-        String prompt = TitleGenerationSupport.buildTitlePrompt(textContent, maxTitleLength);
+        String truncatedContent = textContent.length() > MAX_PROMPT_CHARS
+                ? textContent.substring(0, MAX_PROMPT_CHARS) + "..."
+                : textContent;
+
+        String prompt = String.format(TITLE_PROMPT_TEMPLATE, maxTitleLength, truncatedContent);
 
         JsonObject requestBody = new JsonObject();
         requestBody.addProperty("model", model);
@@ -86,7 +98,7 @@ public final class OllamaClient implements LlmClient {
         options.addProperty("top_k", 30);
         options.addProperty("repeat_penalty", 1.1);
         options.addProperty("num_ctx", 256);
-        options.addProperty("num_predict", TitleGenerationSupport.outputTokenLimit(maxTitleLength));
+        options.addProperty("num_predict", outputTokenLimit(maxTitleLength));
 
         JsonArray stop = new JsonArray();
         stop.add("\n");
@@ -109,7 +121,8 @@ public final class OllamaClient implements LlmClient {
             }
 
             String title = parseResponseForTitle(response.body());
-            return TitleGenerationSupport.sanitizeTitle(title, maxTitleLength);
+            return Optional.ofNullable(title)
+                    .map(raw -> sanitizeTitle(raw, maxTitleLength));
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -209,4 +222,29 @@ public final class OllamaClient implements LlmClient {
         }
     }
 
+    private static int outputTokenLimit(int maxTitleLength) {
+        int estimatedTokens = Math.max(MIN_OUTPUT_TOKENS, maxTitleLength / 4);
+        return Math.min(estimatedTokens, MAX_OUTPUT_TOKENS);
+    }
+
+    private static String sanitizeTitle(String title, int maxLength) {
+        String firstLine = title.lines().findFirst().orElse(title);
+        String cleaned = firstLine
+                .replaceAll("^\\p{Punct}+|\\p{Punct}+$", "")
+                .replaceAll("[\"'`]", "")
+                .replaceAll("[:/\\\\*?<>|]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+
+        if (cleaned.length() <= maxLength) {
+            return cleaned;
+        }
+
+        int lastSpace = cleaned.lastIndexOf(' ', maxLength - 3);
+        if (lastSpace > maxLength / 2) {
+            return cleaned.substring(0, lastSpace).trim();
+        }
+
+        return cleaned.substring(0, maxLength - 3).trim();
+    }
 }

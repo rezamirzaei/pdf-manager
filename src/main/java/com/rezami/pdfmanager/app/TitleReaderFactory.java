@@ -1,6 +1,5 @@
 package com.rezami.pdfmanager.app;
 
-import com.rezami.pdfmanager.llm.EmbeddedLlamaClient;
 import com.rezami.pdfmanager.llm.OllamaClient;
 import com.rezami.pdfmanager.ocr.PdfBoxTextExtractor;
 import com.rezami.pdfmanager.ocr.PdfTextExtractor;
@@ -40,8 +39,7 @@ public final class TitleReaderFactory {
             "llama3"
     );
     private static final int DEFAULT_MAX_TITLE_LENGTH = 100;
-    private static final int DEFAULT_LOCAL_MAX_TEXT_CHARS = 700;
-    private static final int DEFAULT_REMOTE_MAX_TEXT_CHARS = 700;
+    private static final int DEFAULT_MAX_TEXT_CHARS = 180;
 
     private TitleReaderFactory() {}
 
@@ -51,31 +49,6 @@ public final class TitleReaderFactory {
      */
     public static PdfTitleReader createMetadataReader() {
         return new PdfBoxTitleReader();
-    }
-
-    public static PdfTitleReader createLocalLlmReader() {
-        PdfTextExtractor textExtractor = new PdfBoxTextExtractor();
-        EmbeddedLlamaClient localClient = new EmbeddedLlamaClient();
-        if (isIntelMac()) {
-            LOGGER.warning("Embedded llama.cpp on Intel macOS is not fully validated; verify generated titles carefully.");
-        }
-        registerShutdownHook(localClient);
-        return new LlmTitleReader(textExtractor, localClient, DEFAULT_MAX_TITLE_LENGTH, DEFAULT_LOCAL_MAX_TEXT_CHARS);
-    }
-
-    /**
-     * Backward-compatible alias for the embedded local LLM mode.
-     */
-    public static PdfTitleReader createSmartReader() {
-        return createLocalLlmReader();
-    }
-
-    /**
-     * Creates the default built-in reader: metadata first, embedded local LLM as fallback.
-     */
-    public static PdfTitleReader createBuiltInReader() {
-        PdfBoxTitleReader metadataReader = new PdfBoxTitleReader();
-        return new CompositeTitleReader(createLocalLlmReader(), metadataReader, true);
     }
 
     /**
@@ -103,7 +76,7 @@ public final class TitleReaderFactory {
                 textExtractor,
                 llmClient.orElseThrow(),
                 DEFAULT_MAX_TITLE_LENGTH,
-                DEFAULT_REMOTE_MAX_TEXT_CHARS);
+                DEFAULT_MAX_TEXT_CHARS);
     }
 
     /**
@@ -133,7 +106,7 @@ public final class TitleReaderFactory {
 
         PdfTextExtractor textExtractor = new PdfBoxTextExtractor();
         LlmTitleReader llmReader = new LlmTitleReader(textExtractor, llmClient.orElseThrow(),
-                DEFAULT_MAX_TITLE_LENGTH, DEFAULT_REMOTE_MAX_TEXT_CHARS);
+                DEFAULT_MAX_TITLE_LENGTH, DEFAULT_MAX_TEXT_CHARS);
 
         return new CompositeTitleReader(llmReader, metadataReader, preferMetadata);
     }
@@ -238,14 +211,5 @@ public final class TitleReaderFactory {
             return fallback;
         }
         return envValue.trim();
-    }
-
-    private static boolean isIntelMac() {
-        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")
-                && System.getProperty("os.arch", "").equalsIgnoreCase("x86_64");
-    }
-
-    private static void registerShutdownHook(EmbeddedLlamaClient localClient) {
-        Runtime.getRuntime().addShutdownHook(new Thread(localClient::close, "pdf-manager-embedded-llm-shutdown"));
     }
 }
