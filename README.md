@@ -1,6 +1,6 @@
 # PDF Manager (Swing + MVC)
 
-Desktop app that renames PDF files to match their embedded document titles or AI-generated titles.
+Desktop app that renames PDF files to match their embedded document titles, built-in local title inference, or optional Ollama titles.
 
 ## What it does
 
@@ -14,6 +14,13 @@ Desktop app that renames PDF files to match their embedded document titles or AI
 
 The app supports multiple title reading strategies:
 
+### Built-in Mode (`--smart`)
+Uses fast local title inference built into the app:
+1. Extracts text from the first page using PDFBox
+2. Infers a title from the earliest title-like lines
+
+This mode requires no external AI process and is the easiest option to ship inside a native installer.
+
 ### Metadata Mode (`--metadata`)
 Reads titles from embedded PDF metadata in this order:
 1. PDF **Document Information** `Title`
@@ -21,7 +28,7 @@ Reads titles from embedded PDF metadata in this order:
 
 If no title is found, the PDF is skipped.
 
-### LLM Mode (`--llm`)
+### Ollama Mode (`--llm`)
 Uses PDF text extraction and a local LLM (Ollama) to generate titles:
 1. Extracts text from the first page using PDFBox
 2. Sends text to Ollama to generate a concise, descriptive title
@@ -36,7 +43,7 @@ Default preferred model is `llama3.2:1b` for speed, with automatic fallback to o
 If Ollama is unavailable when the app starts, LLM and composite modes degrade cleanly to metadata mode instead of stalling scans file-by-file.
 
 ### Composite Mode (`--composite`)
-Tries LLM first, falls back to metadata if LLM cannot produce a title.
+Tries Ollama first, falls back to metadata if Ollama cannot produce a title.
 
 ## Rename rules
 
@@ -52,24 +59,33 @@ Requires **Java 21+**.
 - Build runnable jar: `./mvnw -q package`
 - Build + run (recommended): `bash run.sh`
 - Build fast + run (skips tests): `bash run.sh --fast`
+- Build native installer/package: `bash package-native.sh`
 
 ### Running modes:
 
 ```bash
-# Default: auto mode (configured Ollama endpoint/model if available, otherwise metadata)
+# Default: auto mode (built-in local inference with metadata fallback)
 java -jar target/pdf-manager-0.1.0-SNAPSHOT-all.jar
+
+# Force built-in local title inference
+java -jar target/pdf-manager-0.1.0-SNAPSHOT-all.jar --smart
 
 # Force metadata mode
 java -jar target/pdf-manager-0.1.0-SNAPSHOT-all.jar --metadata
 
-# LLM mode: use Ollama for AI-generated titles  
+# Ollama mode: use external local LLM
 java -jar target/pdf-manager-0.1.0-SNAPSHOT-all.jar --llm
 
-# Composite mode: LLM first, metadata fallback
+# Composite mode: Ollama first, metadata fallback
 java -jar target/pdf-manager-0.1.0-SNAPSHOT-all.jar --composite
 ```
 
-### Setting up Ollama (for LLM mode)
+### Native package
+
+`bash package-native.sh` builds the fat jar and then uses `jpackage` to create a native package.
+On macOS this produces a `.dmg`; on Linux it falls back to `app-image` unless you override `PACKAGE_TYPE`.
+
+### Setting up Ollama (for optional Ollama mode)
 
 1. Install Ollama: https://ollama.ai/
 2. Start Ollama: `ollama serve`

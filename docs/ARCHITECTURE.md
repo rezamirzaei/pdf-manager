@@ -5,7 +5,7 @@
 - Keep PDF parsing and file operations out of Swing code.
 - Make the core behavior unit-testable (planning, sanitizing, rename execution).
 - Use clear responsibilities (MVC) so the project stays maintainable.
-- Support multiple title reading strategies (metadata, LLM, composite).
+- Support multiple title reading strategies (metadata, built-in local inference, Ollama, composite).
 
 ## Package overview
 
@@ -20,6 +20,7 @@
 - `com.rezami.pdfmanager.service`
   - `PdfTitleReader`: strategy interface for title extraction
   - `PdfBoxTitleReader`: reads titles from PDF metadata
+  - `SmartTitleReader`: infers titles from extracted PDF text without an external AI service
   - `LlmTitleReader`: generates titles using LLM and OCR/text extraction
   - `CompositeTitleReader`: chains multiple readers with fallback
   - `PdfFileScanner`: finds PDFs in a folder
@@ -44,7 +45,17 @@
 - **Factory**: `TitleReaderFactory` encapsulates creation of complex object graphs.
 - **Two-phase rename**: avoids conflicts and supports swaps by moving sources to unique temp names before final targets.
 
-## LLM Integration
+## Built-in Local Inference
+
+The default title generation flow is fully local and packaged with the app:
+
+1. `PdfBoxTextExtractor` extracts text from PDF first page(s)
+2. `SmartTitleReader` scores early title-like lines and selects the best candidate
+3. `CompositeTitleReader` can prefer metadata first and only use local inference when metadata is missing
+
+This gives the app fast title inference without requiring Ollama or any other external process.
+
+## Ollama Integration
 
 The LLM-based title generation flow:
 

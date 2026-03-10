@@ -12,6 +12,7 @@ import com.rezami.pdfmanager.service.PdfRenamer;
 import com.rezami.pdfmanager.service.PdfTitleReader;
 import com.rezami.pdfmanager.service.RenamePlanner;
 import com.rezami.pdfmanager.service.RenameService;
+import com.rezami.pdfmanager.service.SmartTitleReader;
 import com.rezami.pdfmanager.util.FileNameSanitizer;
 
 import java.util.List;
@@ -49,6 +50,25 @@ public final class TitleReaderFactory {
      */
     public static PdfTitleReader createMetadataReader() {
         return new PdfBoxTitleReader();
+    }
+
+    /**
+     * Creates a fast built-in local title reader that infers a title from extracted text.
+     * This does not require Ollama or any external process.
+     */
+    public static PdfTitleReader createSmartReader() {
+        PdfTextExtractor textExtractor = new PdfBoxTextExtractor();
+        return new SmartTitleReader(textExtractor, DEFAULT_MAX_TITLE_LENGTH, DEFAULT_MAX_TEXT_CHARS);
+    }
+
+    /**
+     * Creates the default built-in reader: metadata first, local smart inference as fallback.
+     */
+    public static PdfTitleReader createBuiltInReader() {
+        PdfBoxTitleReader metadataReader = new PdfBoxTitleReader();
+        SmartTitleReader smartReader =
+                new SmartTitleReader(new PdfBoxTextExtractor(), DEFAULT_MAX_TITLE_LENGTH, DEFAULT_MAX_TEXT_CHARS);
+        return new CompositeTitleReader(smartReader, metadataReader, true);
     }
 
     /**

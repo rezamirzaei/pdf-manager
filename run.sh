@@ -2,11 +2,12 @@
 # PDF Manager - Run Script
 #
 # Usage:
-#   ./run.sh              # Build with tests and run (auto: LLM if available)
+#   ./run.sh              # Build with tests and run (auto: built-in local inference)
 #   ./run.sh --fast       # Build without tests and run (default mode)
+#   ./run.sh --smart      # Run with built-in local title inference
 #   ./run.sh --metadata   # Run with metadata-only mode
-#   ./run.sh --llm        # Run with LLM mode (requires Ollama + llama model)
-#   ./run.sh --composite  # Run with composite mode (LLM + metadata fallback)
+#   ./run.sh --llm        # Run with Ollama mode (requires Ollama + llama model)
+#   ./run.sh --composite  # Run with Ollama + metadata fallback
 #   ./run.sh --fast --llm # Build fast and run with LLM mode
 #
 set -eo pipefail
@@ -24,7 +25,7 @@ build_and_run() {
         build_goal=package
         shift
         ;;
-      --metadata|--llm|--composite)
+      --smart|--metadata|--llm|--composite)
         app_args="$1"
         shift
         ;;

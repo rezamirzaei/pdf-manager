@@ -65,7 +65,7 @@ public final class LlmTitleReader implements PdfTitleReader {
             return Optional.empty();
         }
 
-        String llmInput = prepareLlmInput(extractedText.get());
+        String llmInput = TitleTextPreprocessor.prepare(extractedText.get());
         if (llmInput.isBlank()) {
             return Optional.empty();
         }
@@ -95,19 +95,5 @@ public final class LlmTitleReader implements PdfTitleReader {
 
     public int getMaxTextChars() {
         return maxTextChars;
-    }
-
-    private static String prepareLlmInput(String rawText) {
-        String normalized = rawText
-                .replaceAll("\\r\\n|\\r", "\n")
-                .replaceAll("[ \\t]+", " ")
-                .trim();
-
-        String withoutJournalHeader = normalized.replaceFirst(
-                "(?is)^[A-Z0-9][A-Z0-9\\s,.-]{20,}?\\d{4}\\s+\\d+\\s+",
-                "");
-
-        String beforeAbstract = withoutJournalHeader.replaceFirst("(?is)\\babstract\\b.*$", "");
-        return beforeAbstract.trim();
     }
 }

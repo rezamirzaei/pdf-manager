@@ -1,9 +1,15 @@
 package com.rezami.pdfmanager.app;
 
-import com.rezami.pdfmanager.service.*;
+import com.rezami.pdfmanager.service.CompositeTitleReader;
+import com.rezami.pdfmanager.service.PdfBoxTitleReader;
+import com.rezami.pdfmanager.service.PdfRenameService;
+import com.rezami.pdfmanager.service.PdfTitleReader;
+import com.rezami.pdfmanager.service.RenamePlanner;
+import com.rezami.pdfmanager.service.RenameService;
+import com.rezami.pdfmanager.service.SmartTitleReader;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class TitleReaderFactoryTest {
 
@@ -15,15 +21,21 @@ class TitleReaderFactoryTest {
     }
 
     @Test
-    void createLlmReader_whenOllamaUnavailable_returnsMetadataReader() {
-        PdfTitleReader reader = TitleReaderFactory.createLlmReader(
-                "http://localhost:59999", "llama3.2:1b");
+    void createSmartReader_returnsSmartTitleReader() {
+        PdfTitleReader reader = TitleReaderFactory.createSmartReader();
 
-        assertThat(reader).isInstanceOf(PdfBoxTitleReader.class);
+        assertThat(reader).isInstanceOf(SmartTitleReader.class);
     }
 
     @Test
-    void createLlmReader_withCustomConfig_whenOllamaUnavailable_returnsMetadataReader() {
+    void createBuiltInReader_returnsCompositeTitleReader() {
+        PdfTitleReader reader = TitleReaderFactory.createBuiltInReader();
+
+        assertThat(reader).isInstanceOf(CompositeTitleReader.class);
+    }
+
+    @Test
+    void createLlmReader_whenOllamaUnavailable_returnsMetadataReader() {
         PdfTitleReader reader = TitleReaderFactory.createLlmReader(
                 "http://localhost:59999", "llama3.2:1b");
 
@@ -34,14 +46,6 @@ class TitleReaderFactoryTest {
     void createCompositeReader_whenOllamaUnavailable_returnsMetadataReader() {
         PdfTitleReader reader = TitleReaderFactory.createCompositeReader(
                 "http://localhost:59999", "llama3.2:1b", false);
-
-        assertThat(reader).isInstanceOf(PdfBoxTitleReader.class);
-    }
-
-    @Test
-    void createCompositeReader_withCustomConfig_whenOllamaUnavailable_returnsMetadataReader() {
-        PdfTitleReader reader = TitleReaderFactory.createCompositeReader(
-                "http://localhost:59999", "llama3.2:1b", true);
 
         assertThat(reader).isInstanceOf(PdfBoxTitleReader.class);
     }
@@ -65,10 +69,8 @@ class TitleReaderFactoryTest {
 
     @Test
     void isOllamaAvailable_whenOllamaNotRunning_returnsFalse() {
-        // Using a port that's unlikely to have a service running (valid port range is 1-65535)
         boolean available = TitleReaderFactory.isOllamaAvailable("http://localhost:59999");
 
         assertThat(available).isFalse();
     }
 }
-
