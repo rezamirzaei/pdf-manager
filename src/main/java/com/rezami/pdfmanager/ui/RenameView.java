@@ -15,6 +15,8 @@ public interface RenameView {
 
     void setDirectory(Path directory);
 
+    void setRecursiveSelected(boolean recursiveSelected);
+
     boolean isRecursiveSelected();
 
     void setPlan(RenamePlan plan);
@@ -23,4 +25,3 @@ public interface RenameView {
 
     void showError(String title, String message, Throwable cause);
 }
-

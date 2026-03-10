@@ -1,13 +1,18 @@
 package com.rezami.pdfmanager.app;
 
 import com.rezami.pdfmanager.controller.RenameController;
+import com.rezami.pdfmanager.service.CompositeTitleReader;
+import com.rezami.pdfmanager.service.LlmTitleReader;
 import com.rezami.pdfmanager.service.PdfTitleReader;
 import com.rezami.pdfmanager.service.RenameService;
 import com.rezami.pdfmanager.ui.swing.SwingRenameView;
 import com.rezami.pdfmanager.util.SwingTaskRunner;
+import com.rezami.pdfmanager.util.UserPreferences;
 
 import javax.swing.UIManager;
 import javax.swing.SwingUtilities;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Main entry point for the PDF Manager application.
@@ -19,6 +24,7 @@ import javax.swing.SwingUtilities;
  *   java -jar pdf-manager.jar --composite  # Try LLM first, metadata fallback
  */
 public final class PdfManagerMain {
+    private static final Logger LOGGER = Logger.getLogger(PdfManagerMain.class.getName());
 
     private static final String ARG_METADATA = "--metadata";
     private static final String ARG_LLM = "--llm";
@@ -55,11 +61,14 @@ public final class PdfManagerMain {
         PdfTitleReader titleReader = createTitleReader(mode);
         RenameService renameService = TitleReaderFactory.createRenameService(titleReader);
 
-        var view = new SwingRenameView();
+        var preferences = new UserPreferences();
+        var view = new SwingRenameView(preferences);
         var taskRunner = new SwingTaskRunner();
         var controller = new RenameController(renameService, taskRunner, view);
 
         view.setListener(controller);
+        view.setRecursiveSelected(preferences.loadRecursiveSelected());
+        preferences.loadLastDirectory().ifPresent(controller::onDirectoryChosen);
         view.showWindow();
 
         printStartupInfo(mode, titleReader);
@@ -69,31 +78,36 @@ public final class PdfManagerMain {
         return switch (mode) {
             case METADATA -> TitleReaderFactory.createMetadataReader();
             case LLM -> {
-                if (TitleReaderFactory.isOllamaAvailable()) {
-                    System.out.println("Ollama is available. Using LLM-based title generation.");
-                    yield TitleReaderFactory.createLlmReader();
+                PdfTitleReader reader = TitleReaderFactory.createLlmReader();
+                if (reader instanceof LlmTitleReader llmReader) {
+                    LOGGER.info("Ollama is available. Using LLM-based title generation with model " + llmReader.getModelName() + ".");
                 } else {
-                    System.out.println("Warning: Ollama is not available. Falling back to metadata reader.");
-                    yield TitleReaderFactory.createMetadataReader();
+                    LOGGER.warning("Ollama is not available. Falling back to metadata reader.");
                 }
+                yield reader;
             }
             case COMPOSITE -> {
-                System.out.println("Using composite reader (LLM first, metadata fallback).");
-                yield TitleReaderFactory.createCompositeReader();
+                PdfTitleReader reader = TitleReaderFactory.createCompositeReader();
+                if (reader instanceof CompositeTitleReader) {
+                    LOGGER.info("Using composite reader (LLM first, metadata fallback).");
+                } else {
+                    LOGGER.warning("Ollama is not available. Using metadata reader for composite mode.");
+                }
+                yield reader;
             }
         };
     }
 
     private static void printStartupInfo(TitleReaderMode mode, PdfTitleReader reader) {
-        System.out.println("PDF Manager started with " + mode + " mode.");
-        System.out.println("Title reader: " + reader.getClass().getSimpleName());
+        LOGGER.info("PDF Manager started with " + mode + " mode.");
+        LOGGER.info("Title reader: " + reader.getClass().getSimpleName());
     }
 
     private static void setSystemLookAndFeel() {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {
-            // Keep default LAF.
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Could not set system look and feel; using default.", e);
         }
     }
 

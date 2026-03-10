@@ -54,8 +54,7 @@ The LLM-based title generation flow:
    - Falls back to extracting from multiple pages if first page has little content
 2. `OllamaClient` sends extracted text to local Ollama server
    - Uses a prompt template to generate concise, filename-safe titles
-   - Supports configurable model (default: llama3.2:3b)
+   - Supports configurable model (default: llama3.2:1b)
 3. `LlmTitleReader` orchestrates the flow and implements `PdfTitleReader`
 
 This allows seamless switching between metadata-based and AI-based title generation.
-

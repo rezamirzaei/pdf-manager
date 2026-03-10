@@ -27,10 +27,12 @@ import javax.swing.WindowConstants;
 import com.rezami.pdfmanager.domain.RenamePlan;
 import com.rezami.pdfmanager.ui.RenameView;
 import com.rezami.pdfmanager.ui.RenameViewListener;
+import com.rezami.pdfmanager.util.UserPreferences;
 
 public final class SwingRenameView extends JFrame implements RenameView {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
+    private final UserPreferences preferences;
     private final JTextField directoryField = new JTextField();
     private final JCheckBox recursiveCheckBox = new JCheckBox("Include subfolders");
     private final JButton browseButton = new JButton("Browse…");
@@ -45,15 +47,25 @@ public final class SwingRenameView extends JFrame implements RenameView {
     private final JTextArea logArea = new JTextArea();
 
     private RenameViewListener listener;
+    private boolean busy;
+    private boolean hasReadyEntries;
 
     public SwingRenameView() {
+        this(new UserPreferences());
+    }
+
+    public SwingRenameView(UserPreferences preferences) {
         super("PDF Manager — Rename PDFs by Title");
+        this.preferences = Objects.requireNonNull(preferences, "preferences");
         buildUi();
+        restorePreferences();
+        updateActionState();
     }
 
     @Override
     public void setListener(RenameViewListener listener) {
         this.listener = Objects.requireNonNull(listener, "listener");
+        updateActionState();
     }
 
     @Override
@@ -67,38 +79,55 @@ public final class SwingRenameView extends JFrame implements RenameView {
 
     @Override
     public void setBusy(boolean busy) {
+        this.busy = busy;
         SwingUtilities.invokeLater(
                 () -> {
-                    browseButton.setEnabled(!busy);
-                    scanButton.setEnabled(!busy);
-                    renameButton.setEnabled(!busy);
-                    recursiveCheckBox.setEnabled(!busy);
                     if (!busy) {
                         progress.setValue(0);
                         progress.setIndeterminate(false);
+                        progress.setString("");
                         progressLabel.setText("");
                     }
+                    updateActionState();
                 });
     }
 
     @Override
     public void setProgress(int current, int total, String message) {
         SwingUtilities.invokeLater(() -> {
+            String progressMessage = message == null ? "" : message;
             if (total > 0) {
                 int percent = (int) ((current * 100.0) / total);
                 progress.setIndeterminate(false);
                 progress.setValue(percent);
                 progressLabel.setText(current + "/" + total);
+                progress.setString(progressMessage);
             } else {
                 progress.setIndeterminate(true);
-                progressLabel.setText(message);
+                progressLabel.setText("");
+                progress.setString(progressMessage);
             }
         });
     }
 
     @Override
     public void setDirectory(Path directory) {
-        directoryField.setText(directory == null ? "" : directory.toString());
+        SwingUtilities.invokeLater(() -> {
+            directoryField.setText(directory == null ? "" : directory.toString());
+            updateActionState();
+        });
+        if (directory != null) {
+            preferences.saveLastDirectory(directory);
+        }
+    }
+
+    @Override
+    public void setRecursiveSelected(boolean recursiveSelected) {
+        SwingUtilities.invokeLater(() -> {
+            recursiveCheckBox.setSelected(recursiveSelected);
+            updateActionState();
+        });
+        preferences.saveRecursiveSelected(recursiveSelected);
     }
 
     @Override
@@ -108,14 +137,20 @@ public final class SwingRenameView extends JFrame implements RenameView {
 
     @Override
     public void setPlan(RenamePlan plan) {
-        tableModel.setPlan(plan);
+        this.hasReadyEntries = plan.readyCount() > 0;
+        SwingUtilities.invokeLater(() -> {
+            tableModel.setPlan(plan);
+            updateActionState();
+        });
     }
 
     @Override
     public void appendLog(String message) {
-        String line = "[" + TIME.format(LocalTime.now()) + "] " + message;
-        logArea.append(line + "\n");
-        logArea.setCaretPosition(logArea.getDocument().getLength());
+        SwingUtilities.invokeLater(() -> {
+            String line = "[" + TIME.format(LocalTime.now()) + "] " + message;
+            logArea.append(line + "\n");
+            logArea.setCaretPosition(logArea.getDocument().getLength());
+        });
     }
 
     @Override
@@ -124,7 +159,7 @@ public final class SwingRenameView extends JFrame implements RenameView {
                 cause == null
                         ? message
                         : message + "\n\n" + cause.getClass().getSimpleName() + ": " + cause.getMessage();
-        JOptionPane.showMessageDialog(this, full, title, JOptionPane.ERROR_MESSAGE);
+        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, full, title, JOptionPane.ERROR_MESSAGE));
     }
 
     private void buildUi() {
@@ -140,6 +175,8 @@ public final class SwingRenameView extends JFrame implements RenameView {
 
         JScrollPane tableScroll = new JScrollPane(table);
         tableScroll.setBorder(BorderFactory.createTitledBorder("Preview"));
+        table.setAutoCreateRowSorter(true);
+        table.setFillsViewportHeight(true);
         add(tableScroll, BorderLayout.CENTER);
 
         logArea.setEditable(false);
@@ -178,7 +215,10 @@ public final class SwingRenameView extends JFrame implements RenameView {
 
         progress.setPreferredSize(new Dimension(200, 20));
         progress.setStringPainted(true);
-        progressLabel.setPreferredSize(new Dimension(80, 20));
+        progressLabel.setPreferredSize(new Dimension(100, 20));
+
+        recursiveCheckBox.addActionListener(
+                e -> preferences.saveRecursiveSelected(recursiveCheckBox.isSelected()));
 
         scanButton.addActionListener(
                 e -> {
@@ -212,6 +252,7 @@ public final class SwingRenameView extends JFrame implements RenameView {
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         chooser.setDialogTitle("Select folder containing PDFs");
         chooser.setAcceptAllFileFilterUsed(false);
+        preferences.loadLastDirectory().ifPresent(directory -> chooser.setCurrentDirectory(directory.toFile()));
 
         int result = chooser.showOpenDialog(this);
         if (result != JFileChooser.APPROVE_OPTION) {
@@ -219,5 +260,18 @@ public final class SwingRenameView extends JFrame implements RenameView {
         }
         return chooser.getSelectedFile().toPath();
     }
-}
 
+    private void restorePreferences() {
+        recursiveCheckBox.setSelected(preferences.loadRecursiveSelected());
+    }
+
+    private void updateActionState() {
+        boolean hasListener = listener != null;
+        boolean hasDirectory = !directoryField.getText().isBlank();
+
+        browseButton.setEnabled(!busy);
+        recursiveCheckBox.setEnabled(!busy);
+        scanButton.setEnabled(!busy && hasListener && hasDirectory);
+        renameButton.setEnabled(!busy && hasListener && hasReadyEntries);
+    }
+}

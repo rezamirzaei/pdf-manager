@@ -15,33 +15,35 @@ class TitleReaderFactoryTest {
     }
 
     @Test
-    void createLlmReader_returnsLlmTitleReader() {
-        PdfTitleReader reader = TitleReaderFactory.createLlmReader();
-
-        assertThat(reader).isInstanceOf(LlmTitleReader.class);
-    }
-
-    @Test
-    void createLlmReader_withCustomConfig_returnsLlmTitleReader() {
+    void createLlmReader_whenOllamaUnavailable_returnsMetadataReader() {
         PdfTitleReader reader = TitleReaderFactory.createLlmReader(
-                "http://localhost:11434", "llama3.2:1b");
+                "http://localhost:59999", "llama3.2:1b");
 
-        assertThat(reader).isInstanceOf(LlmTitleReader.class);
+        assertThat(reader).isInstanceOf(PdfBoxTitleReader.class);
     }
 
     @Test
-    void createCompositeReader_returnsCompositeTitleReader() {
-        PdfTitleReader reader = TitleReaderFactory.createCompositeReader();
+    void createLlmReader_withCustomConfig_whenOllamaUnavailable_returnsMetadataReader() {
+        PdfTitleReader reader = TitleReaderFactory.createLlmReader(
+                "http://localhost:59999", "llama3.2:1b");
 
-        assertThat(reader).isInstanceOf(CompositeTitleReader.class);
+        assertThat(reader).isInstanceOf(PdfBoxTitleReader.class);
     }
 
     @Test
-    void createCompositeReader_withCustomConfig_returnsCompositeTitleReader() {
+    void createCompositeReader_whenOllamaUnavailable_returnsMetadataReader() {
         PdfTitleReader reader = TitleReaderFactory.createCompositeReader(
-                "http://localhost:11434", "llama3.2:1b", true);
+                "http://localhost:59999", "llama3.2:1b", false);
 
-        assertThat(reader).isInstanceOf(CompositeTitleReader.class);
+        assertThat(reader).isInstanceOf(PdfBoxTitleReader.class);
+    }
+
+    @Test
+    void createCompositeReader_withCustomConfig_whenOllamaUnavailable_returnsMetadataReader() {
+        PdfTitleReader reader = TitleReaderFactory.createCompositeReader(
+                "http://localhost:59999", "llama3.2:1b", true);
+
+        assertThat(reader).isInstanceOf(PdfBoxTitleReader.class);
     }
 
     @Test
@@ -69,5 +71,4 @@ class TitleReaderFactoryTest {
         assertThat(available).isFalse();
     }
 }
-
 

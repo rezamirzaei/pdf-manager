@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Composite PDF title reader that tries multiple strategies in order.
@@ -16,6 +18,7 @@ import java.util.Optional;
  * or documents without metadata, while still using embedded titles when available.
  */
 public final class CompositeTitleReader implements PdfTitleReader {
+    private static final Logger LOGGER = Logger.getLogger(CompositeTitleReader.class.getName());
 
     private final PdfTitleReader primary;
     private final PdfTitleReader fallback;
@@ -56,8 +59,7 @@ public final class CompositeTitleReader implements PdfTitleReader {
                 return title;
             }
         } catch (IOException e) {
-            // Log and continue to fallback
-            System.err.println("Primary reader failed for " + pdfPath + ": " + e.getMessage());
+            LOGGER.log(Level.FINE, "Primary title reader failed; using fallback reader for " + pdfPath, e);
         }
 
         // Try second reader
@@ -79,4 +81,3 @@ public final class CompositeTitleReader implements PdfTitleReader {
         return new CompositeTitleReader(llmReader, metadataReader, true);
     }
 }
-

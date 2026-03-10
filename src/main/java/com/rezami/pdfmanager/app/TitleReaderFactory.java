@@ -1,21 +1,31 @@
 package com.rezami.pdfmanager.app;
 
-import com.rezami.pdfmanager.llm.LlmClient;
 import com.rezami.pdfmanager.llm.OllamaClient;
 import com.rezami.pdfmanager.ocr.PdfBoxTextExtractor;
 import com.rezami.pdfmanager.ocr.PdfTextExtractor;
-import com.rezami.pdfmanager.service.*;
+import com.rezami.pdfmanager.service.CompositeTitleReader;
+import com.rezami.pdfmanager.service.LlmTitleReader;
+import com.rezami.pdfmanager.service.PdfBoxTitleReader;
+import com.rezami.pdfmanager.service.PdfFileScanner;
+import com.rezami.pdfmanager.service.PdfRenameService;
+import com.rezami.pdfmanager.service.PdfRenamer;
+import com.rezami.pdfmanager.service.PdfTitleReader;
+import com.rezami.pdfmanager.service.RenamePlanner;
+import com.rezami.pdfmanager.service.RenameService;
 import com.rezami.pdfmanager.util.FileNameSanitizer;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.logging.Logger;
 
 /**
  * Factory for creating application components with different configurations.
  * Supports both metadata-based and LLM-based title reading strategies.
  */
 public final class TitleReaderFactory {
+    private static final Logger LOGGER = Logger.getLogger(TitleReaderFactory.class.getName());
 
     private static final String DEFAULT_OLLAMA_URL = "http://localhost:11434";
     private static final String DEFAULT_MODEL = "llama3.2:1b";
@@ -56,9 +66,17 @@ public final class TitleReaderFactory {
      */
     public static PdfTitleReader createLlmReader(String ollamaUrl, String model) {
         PdfTextExtractor textExtractor = new PdfBoxTextExtractor();
-        LlmClient llmClient = createResolvedOllamaClient(ollamaUrl, model);
+        Optional<OllamaClient> llmClient = createAvailableOllamaClient(ollamaUrl, model);
+        if (llmClient.isEmpty()) {
+            LOGGER.warning("Ollama is unavailable; using metadata reader instead of LLM reader.");
+            return createMetadataReader();
+        }
 
-        return new LlmTitleReader(textExtractor, llmClient, DEFAULT_MAX_TITLE_LENGTH, DEFAULT_MAX_TEXT_CHARS);
+        return new LlmTitleReader(
+                textExtractor,
+                llmClient.orElseThrow(),
+                DEFAULT_MAX_TITLE_LENGTH,
+                DEFAULT_MAX_TEXT_CHARS);
     }
 
     /**
@@ -80,10 +98,14 @@ public final class TitleReaderFactory {
      */
     public static PdfTitleReader createCompositeReader(String ollamaUrl, String model, boolean preferMetadata) {
         PdfBoxTitleReader metadataReader = new PdfBoxTitleReader();
+        Optional<OllamaClient> llmClient = createAvailableOllamaClient(ollamaUrl, model);
+        if (llmClient.isEmpty()) {
+            LOGGER.warning("Ollama is unavailable; using metadata reader instead of composite reader.");
+            return metadataReader;
+        }
 
         PdfTextExtractor textExtractor = new PdfBoxTextExtractor();
-        LlmClient llmClient = createResolvedOllamaClient(ollamaUrl, model);
-        LlmTitleReader llmReader = new LlmTitleReader(textExtractor, llmClient,
+        LlmTitleReader llmReader = new LlmTitleReader(textExtractor, llmClient.orElseThrow(),
                 DEFAULT_MAX_TITLE_LENGTH, DEFAULT_MAX_TEXT_CHARS);
 
         return new CompositeTitleReader(llmReader, metadataReader, preferMetadata);
@@ -124,25 +146,28 @@ public final class TitleReaderFactory {
         return client.isAvailable();
     }
 
-    private static OllamaClient createResolvedOllamaClient(String ollamaUrl, String requestedModel) {
+    private static Optional<OllamaClient> createAvailableOllamaClient(String ollamaUrl, String requestedModel) {
         Objects.requireNonNull(ollamaUrl, "ollamaUrl");
         Objects.requireNonNull(requestedModel, "requestedModel");
 
         String trimmedUrl = ollamaUrl.trim();
         String trimmedRequestedModel = requestedModel.trim();
         OllamaClient probeClient = new OllamaClient(trimmedUrl, trimmedRequestedModel);
+        if (!probeClient.isAvailable()) {
+            return Optional.empty();
+        }
 
         List<String> availableModels = probeClient.listModels();
         if (availableModels.isEmpty()) {
-            return probeClient;
+            return Optional.of(probeClient);
         }
 
         String resolvedModel = resolveModelName(availableModels, trimmedRequestedModel);
         if (!resolvedModel.equalsIgnoreCase(trimmedRequestedModel)) {
-            System.out.println(
+            LOGGER.warning(
                     "Ollama model '" + trimmedRequestedModel + "' is unavailable. Using '" + resolvedModel + "'.");
         }
-        return new OllamaClient(trimmedUrl, resolvedModel);
+        return Optional.of(new OllamaClient(trimmedUrl, resolvedModel));
     }
 
     private static String resolveModelName(List<String> availableModels, String requestedModel) {

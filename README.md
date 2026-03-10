@@ -7,6 +7,7 @@ Desktop app that renames PDF files to match their embedded document titles or AI
 - You choose a folder.
 - Click **Scan** to preview file name changes.
 - Click **Rename** to rename all PDFs in that folder to their titles.
+- The app remembers your last folder and subfolder setting between launches.
 
 ## Title source
 
@@ -31,6 +32,7 @@ PDFBox can extract text from:
 
 Requires [Ollama](https://ollama.ai/) running locally with a Llama model.
 Default preferred model is `llama3.2:1b` for speed, with automatic fallback to other local `llama*` models.
+If Ollama is unavailable when the app starts, LLM and composite modes degrade cleanly to metadata mode instead of stalling scans file-by-file.
 
 ### Composite Mode (`--composite`)
 Tries LLM first, falls back to metadata if LLM cannot produce a title.
