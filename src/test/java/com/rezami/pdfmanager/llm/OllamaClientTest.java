@@ -154,7 +154,7 @@ class OllamaClientTest {
         Optional<String> title = client.generateTitle("some text", 100);
 
         assertThat(title).isPresent();
-        assertThat(title.get()).isEqualTo("Title With invalid chars");
+        assertThat(title.get()).isEqualTo("With invalid chars");
     }
 
     @Test

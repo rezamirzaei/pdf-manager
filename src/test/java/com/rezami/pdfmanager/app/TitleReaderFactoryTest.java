@@ -1,12 +1,12 @@
 package com.rezami.pdfmanager.app;
 
 import com.rezami.pdfmanager.service.CompositeTitleReader;
+import com.rezami.pdfmanager.service.LlmTitleReader;
 import com.rezami.pdfmanager.service.PdfBoxTitleReader;
 import com.rezami.pdfmanager.service.PdfRenameService;
 import com.rezami.pdfmanager.service.PdfTitleReader;
 import com.rezami.pdfmanager.service.RenamePlanner;
 import com.rezami.pdfmanager.service.RenameService;
-import com.rezami.pdfmanager.service.SmartTitleReader;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,10 +21,17 @@ class TitleReaderFactoryTest {
     }
 
     @Test
-    void createSmartReader_returnsSmartTitleReader() {
+    void createSmartReader_returnsLlmTitleReader() {
         PdfTitleReader reader = TitleReaderFactory.createSmartReader();
 
-        assertThat(reader).isInstanceOf(SmartTitleReader.class);
+        assertThat(reader).isInstanceOf(LlmTitleReader.class);
+    }
+
+    @Test
+    void createLocalLlmReader_returnsLlmTitleReader() {
+        PdfTitleReader reader = TitleReaderFactory.createLocalLlmReader();
+
+        assertThat(reader).isInstanceOf(LlmTitleReader.class);
     }
 
     @Test

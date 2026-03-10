@@ -33,19 +33,31 @@ if [[ -z "$JAR" ]]; then
   exit 1
 fi
 
+PACKAGE_INPUT_DIR="target/package-input"
+rm -rf "$PACKAGE_INPUT_DIR"
+mkdir -p "$PACKAGE_INPUT_DIR"
+cp "$JAR" "$PACKAGE_INPUT_DIR/"
+
+if [[ "${PACKAGE_BUNDLE_LOCAL_MODEL:-1}" != "0" ]]; then
+  echo "Ensuring embedded local model is available..."
+  MODEL_PATH="$(bash "$ROOT_DIR/prepare-local-model.sh")"
+  mkdir -p "$PACKAGE_INPUT_DIR/models"
+  cp "$MODEL_PATH" "$PACKAGE_INPUT_DIR/models/"
+fi
+
 mkdir -p dist
 
 echo "Creating native package (${PACKAGE_TYPE})..."
 jpackage \
   --type "$PACKAGE_TYPE" \
   --dest dist \
-  --input target \
+  --input "$PACKAGE_INPUT_DIR" \
   --name "$APP_NAME" \
   --main-jar "$(basename "$JAR")" \
   --main-class com.rezami.pdfmanager.app.PdfManagerMain \
   --app-version "$APP_VERSION" \
   --vendor "rezami" \
-  --description "Rename PDF files using built-in local title inference or optional Ollama." \
+  --description "Rename PDF files using a bundled local llama.cpp model, metadata, or optional Ollama." \
   --java-options "-Dapple.laf.useScreenMenuBar=true"
 
 echo "Native package created in dist/."

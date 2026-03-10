@@ -5,7 +5,7 @@
 - Keep PDF parsing and file operations out of Swing code.
 - Make the core behavior unit-testable (planning, sanitizing, rename execution).
 - Use clear responsibilities (MVC) so the project stays maintainable.
-- Support multiple title reading strategies (metadata, built-in local inference, Ollama, composite).
+- Support multiple title reading strategies (metadata, embedded local llama.cpp, Ollama, composite).
 
 ## Package overview
 
@@ -20,7 +20,6 @@
 - `com.rezami.pdfmanager.service`
   - `PdfTitleReader`: strategy interface for title extraction
   - `PdfBoxTitleReader`: reads titles from PDF metadata
-  - `SmartTitleReader`: infers titles from extracted PDF text without an external AI service
   - `LlmTitleReader`: generates titles using LLM and OCR/text extraction
   - `CompositeTitleReader`: chains multiple readers with fallback
   - `PdfFileScanner`: finds PDFs in a folder
@@ -28,6 +27,8 @@
   - `PdfRenamer`: executes the plan using a two‑phase rename with rollback
 - `com.rezami.pdfmanager.llm`
   - `LlmClient`: strategy interface for LLM interactions
+  - `EmbeddedLlamaClient`: runs a bundled local GGUF model through llama.cpp Java bindings
+  - `LocalModelResolver`: finds bundled GGUFs or downloads/caches the default model
   - `OllamaClient`: connects to local Ollama server for title generation
 - `com.rezami.pdfmanager.ocr`
   - `PdfTextExtractor`: strategy interface for text extraction
@@ -45,15 +46,17 @@
 - **Factory**: `TitleReaderFactory` encapsulates creation of complex object graphs.
 - **Two-phase rename**: avoids conflicts and supports swaps by moving sources to unique temp names before final targets.
 
-## Built-in Local Inference
+## Embedded Local LLM
 
-The default title generation flow is fully local and packaged with the app:
+The default standalone title generation flow is fully local and packaged with the app:
 
 1. `PdfBoxTextExtractor` extracts text from PDF first page(s)
-2. `SmartTitleReader` scores early title-like lines and selects the best candidate
-3. `CompositeTitleReader` can prefer metadata first and only use local inference when metadata is missing
+2. `LocalModelResolver` locates a bundled GGUF next to the packaged app or downloads/caches the default model
+3. `EmbeddedLlamaClient` loads the GGUF through llama.cpp Java bindings
+4. `LlmTitleReader` prompts the local model to return a concise filename-safe title
+5. `CompositeTitleReader` can prefer metadata first and only use the local model when metadata is missing
 
-This gives the app fast title inference without requiring Ollama or any other external process.
+This gives the app a real local LLM path without requiring Ollama or any other external process.
 
 ## Ollama Integration
 

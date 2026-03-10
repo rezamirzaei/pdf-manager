@@ -5,7 +5,6 @@ import com.rezami.pdfmanager.service.CompositeTitleReader;
 import com.rezami.pdfmanager.service.LlmTitleReader;
 import com.rezami.pdfmanager.service.PdfTitleReader;
 import com.rezami.pdfmanager.service.RenameService;
-import com.rezami.pdfmanager.service.SmartTitleReader;
 import com.rezami.pdfmanager.ui.swing.SwingRenameView;
 import com.rezami.pdfmanager.util.SwingTaskRunner;
 import com.rezami.pdfmanager.util.UserPreferences;
@@ -19,16 +18,18 @@ import java.util.logging.Logger;
  * Main entry point for the PDF Manager application.
  *
  * Usage:
- *   java -jar pdf-manager.jar              # Auto: built-in local inference, metadata fallback
+ *   java -jar pdf-manager.jar                  # Auto: metadata first, embedded local LLM fallback
  *   java -jar pdf-manager.jar --metadata   # Force metadata-based title reading
- *   java -jar pdf-manager.jar --smart      # Use built-in local title inference
- *   java -jar pdf-manager.jar --llm        # Use LLM (Ollama) for title generation
+ *   java -jar pdf-manager.jar --local-llm  # Use embedded local llama.cpp model
+ *   java -jar pdf-manager.jar --smart      # Backward-compatible alias for --local-llm
+ *   java -jar pdf-manager.jar --llm        # Use Ollama for title generation
  *   java -jar pdf-manager.jar --composite  # Try Ollama first, metadata fallback
  */
 public final class PdfManagerMain {
     private static final Logger LOGGER = Logger.getLogger(PdfManagerMain.class.getName());
 
     private static final String ARG_METADATA = "--metadata";
+    private static final String ARG_LOCAL_LLM = "--local-llm";
     private static final String ARG_SMART = "--smart";
     private static final String ARG_LLM = "--llm";
     private static final String ARG_COMPOSITE = "--composite";
@@ -45,8 +46,8 @@ public final class PdfManagerMain {
             if (ARG_METADATA.equalsIgnoreCase(arg)) {
                 return TitleReaderMode.METADATA;
             }
-            if (ARG_SMART.equalsIgnoreCase(arg)) {
-                return TitleReaderMode.SMART;
+            if (ARG_LOCAL_LLM.equalsIgnoreCase(arg) || ARG_SMART.equalsIgnoreCase(arg)) {
+                return TitleReaderMode.LOCAL_LLM;
             }
             if (ARG_LLM.equalsIgnoreCase(arg)) {
                 return TitleReaderMode.LLM;
@@ -81,14 +82,14 @@ public final class PdfManagerMain {
         return switch (mode) {
             case AUTO -> {
                 PdfTitleReader reader = TitleReaderFactory.createBuiltInReader();
-                LOGGER.info("Auto mode selected built-in local title inference with metadata fallback.");
+                LOGGER.info("Auto mode selected metadata with embedded local LLM fallback.");
                 yield reader;
             }
             case METADATA -> TitleReaderFactory.createMetadataReader();
-            case SMART -> {
-                PdfTitleReader reader = TitleReaderFactory.createSmartReader();
-                if (reader instanceof SmartTitleReader) {
-                    LOGGER.info("Using built-in local title inference.");
+            case LOCAL_LLM -> {
+                PdfTitleReader reader = TitleReaderFactory.createLocalLlmReader();
+                if (reader instanceof LlmTitleReader llmReader) {
+                    LOGGER.info("Using embedded local llama.cpp model " + llmReader.getModelName() + ".");
                 }
                 yield reader;
             }
@@ -129,7 +130,7 @@ public final class PdfManagerMain {
     private enum TitleReaderMode {
         AUTO,
         METADATA,
-        SMART,
+        LOCAL_LLM,
         LLM,
         COMPOSITE
     }
